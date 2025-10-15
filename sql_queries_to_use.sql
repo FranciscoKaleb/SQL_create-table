@@ -1,3 +1,5 @@
+CREATE DATABASE pos_db;
+USE pos_db;
 
 CREATE TABLE `products` (
   `product_id` int NOT NULL AUTO_INCREMENT,
