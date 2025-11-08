@@ -100,6 +100,57 @@ TRUNCATE pending_items;
 
 
 
+SELECT @@autocommit;
+SET autocommit = 0;
+
+INSERT INTO pos_db.pending_items(product_id, quantity, price) 
+SELECT product_id, 1, price FROM products WHERE product_id = 2;
+
+SELECT * FROM pending_items;
+SELECT * FROM products;
+SELECT * FROM transactions;
+
+START TRANSACTION;
+
+-- [1] Insert main transaction summary
+INSERT INTO transactions (date, total_amount, cash_, change_, transaction_status)
+SELECT NOW(), SUM(subtotal), 1000, 1000 - SUM(subtotal), 'Complete'
+FROM pending_items;
+
+-- [2] Get the last transaction_id
+SET @last_trx_id = LAST_INSERT_ID();
+
+-- [3] Insert detailed items
+INSERT INTO transaction_items (transaction_id, product_id, quantity, price)
+SELECT @last_trx_id, product_id, quantity, price FROM pending_items;
+
+-- [4] Deduct stock from products
+UPDATE products p
+JOIN (
+  SELECT product_id, SUM(quantity) AS total_qty
+  FROM pending_items
+  GROUP BY product_id
+) AS totals ON p.product_id = totals.product_id
+SET p.stock = p.stock - totals.total_qty;
+
+
+-- [5] Clear pending items
+TRUNCATE pending_items;
+
+-- ✅ If everything succeeds
+COMMIT;
+
+-- ❌ If something goes wrong (for example, out-of-stock)
+ROLLBACK;
+
+
+
+
+
+
+
+
+
 
 -- admin
 
